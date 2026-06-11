@@ -50,11 +50,17 @@ fun MealMateNavHost(
             PlannerScreen(
                 selectedDay = uiState.selectedPlannerDay,
                 items = uiState.selectedDayPlans,
+                hasMealPlan = uiState.mealPlan.isNotEmpty(),
                 onDaySelected = viewModel::selectPlannerDay,
                 onMealClick = { mealId ->
                     navController.navigate(MealMateDestination.detailRoute(mealId))
                 },
                 onRemovePlan = viewModel::removeMealPlan,
+                onGenerateShoppingList = viewModel::generateShoppingList,
+                onClearShoppingList = viewModel::clearShoppingList,
+                isGeneratingShoppingList = uiState.isGeneratingShoppingList,
+                shoppingList = uiState.shoppingList,
+                shoppingListError = uiState.shoppingListError,
             )
         }
 

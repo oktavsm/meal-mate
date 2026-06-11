@@ -2,6 +2,7 @@ package com.app.mealmate.data
 
 import com.app.mealmate.data.local.LocalMealMateStore
 import com.app.mealmate.data.local.StoredMealPlan
+import com.app.mealmate.data.remote.GeminiRemoteDataSource
 import com.app.mealmate.data.remote.TheMealDbRemoteDataSource
 import com.app.mealmate.domain.model.Meal
 import com.app.mealmate.domain.model.MealDay
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.update
 class MealMateRepository(
     private val seedMeals: List<Meal> = MealSeedData.meals,
     private val remoteDataSource: TheMealDbRemoteDataSource = TheMealDbRemoteDataSource(),
+    private val geminiRemoteDataSource: GeminiRemoteDataSource? = null,
     private val localStore: LocalMealMateStore? = null,
 ) {
     private val _favorites = MutableStateFlow<Set<String>>(emptySet())
@@ -141,6 +143,19 @@ class MealMateRepository(
         _mealPlan.update { current -> current.filterNot { it.id == itemId } }
     }
 
+    suspend fun generateShoppingList(items: List<MealPlanItem>): Result<String> {
+        if (items.isEmpty()) {
+            return Result.failure(IllegalStateException("Add meals to your planner first."))
+        }
+
+        val dataSource = geminiRemoteDataSource
+            ?: return Result.failure(IllegalStateException("Gemini is not configured yet."))
+
+        return runCatching {
+            dataSource.generateShoppingList(items.toShoppingListPrompt())
+        }
+    }
+
     private fun mergeMeals(primary: List<Meal>, secondary: List<Meal>): List<Meal> {
         return (primary + secondary).distinctBy { it.id }
     }
@@ -167,6 +182,30 @@ class MealMateRepository(
                 slot = item.slot,
             )
         }
+    }
+
+    private fun List<MealPlanItem>.toShoppingListPrompt(): String {
+        val mealLines = joinToString(separator = "\n") { item ->
+            val ingredients = item.meal.ingredients.joinToString { ingredient ->
+                "${ingredient.measure} ${ingredient.name}".trim()
+            }
+            "- ${item.day.label} ${item.slot.label}: ${item.meal.name}. Ingredients: $ingredients"
+        }
+
+        return """
+            You are a practical meal planning assistant.
+            Create a concise shopping list from this weekly meal plan.
+
+            Rules:
+            - Merge duplicate or similar ingredients.
+            - Group items by category.
+            - Keep quantities simple and readable.
+            - Return plain text only, no markdown table.
+            - Use short section headers and bullet points.
+
+            Meal plan:
+            $mealLines
+        """.trimIndent()
     }
 }
 

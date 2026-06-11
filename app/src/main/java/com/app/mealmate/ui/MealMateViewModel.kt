@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.app.mealmate.BuildConfig
+import com.app.mealmate.data.remote.GeminiRemoteDataSource
 import com.app.mealmate.data.local.LocalMealMateStore
 import com.app.mealmate.data.MealMateRepository
 import com.app.mealmate.domain.model.Meal
@@ -29,6 +31,9 @@ class MealMateViewModel(
     private val selectedPlannerDay = MutableStateFlow(MealDay.Monday)
     private val isLoading = MutableStateFlow(false)
     private val statusMessage = MutableStateFlow<String?>(null)
+    private val isGeneratingShoppingList = MutableStateFlow(false)
+    private val shoppingList = MutableStateFlow<String?>(null)
+    private val shoppingListError = MutableStateFlow<String?>(null)
     private var searchJob: Job? = null
 
     val uiState: StateFlow<MealMateUiState> = combine(
@@ -46,10 +51,19 @@ class MealMateViewModel(
         repository.favorites,
         repository.mealPlan,
         selectedPlannerDay,
-        combine(isLoading, statusMessage) { isLoading, statusMessage ->
+        combine(
+            isLoading,
+            statusMessage,
+            isGeneratingShoppingList,
+            shoppingList,
+            shoppingListError,
+        ) { isLoading, statusMessage, isGeneratingShoppingList, shoppingList, shoppingListError ->
             NetworkState(
                 isLoading = isLoading,
                 statusMessage = statusMessage,
+                isGeneratingShoppingList = isGeneratingShoppingList,
+                shoppingList = shoppingList,
+                shoppingListError = shoppingListError,
             )
         },
     ) { mealLists, favorites, mealPlan, selectedDay, networkState ->
@@ -62,6 +76,9 @@ class MealMateViewModel(
             selectedPlannerDay = selectedDay,
             isLoading = networkState.isLoading,
             statusMessage = networkState.statusMessage,
+            isGeneratingShoppingList = networkState.isGeneratingShoppingList,
+            shoppingList = networkState.shoppingList,
+            shoppingListError = networkState.shoppingListError,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -163,6 +180,31 @@ class MealMateViewModel(
         selectedPlannerDay.update { day }
     }
 
+    fun generateShoppingList() {
+        if (uiState.value.mealPlan.isEmpty()) {
+            shoppingListError.value = "Add recipes to your planner first."
+            shoppingList.value = null
+            return
+        }
+
+        viewModelScope.launch {
+            isGeneratingShoppingList.value = true
+            shoppingListError.value = null
+            val result = repository.generateShoppingList(uiState.value.mealPlan)
+            result
+                .onSuccess { shoppingList.value = it }
+                .onFailure { error ->
+                    shoppingListError.value = error.message ?: "Unable to generate shopping list."
+                }
+            isGeneratingShoppingList.value = false
+        }
+    }
+
+    fun clearShoppingList() {
+        shoppingList.value = null
+        shoppingListError.value = null
+    }
+
     private fun rememberMeals(meals: List<Meal>) {
         knownMeals.update { current -> (current + meals).distinctBy { it.id } }
     }
@@ -175,6 +217,9 @@ class MealMateViewModel(
     private data class NetworkState(
         val isLoading: Boolean,
         val statusMessage: String?,
+        val isGeneratingShoppingList: Boolean,
+        val shoppingList: String?,
+        val shoppingListError: String?,
     )
 
     companion object {
@@ -185,6 +230,7 @@ class MealMateViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val repository = MealMateRepository(
                         localStore = LocalMealMateStore(appContext),
+                        geminiRemoteDataSource = GeminiRemoteDataSource(BuildConfig.GEMINI_API_KEY),
                     )
                     return MealMateViewModel(repository) as T
                 }
