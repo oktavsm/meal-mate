@@ -36,6 +36,8 @@ fun MealMateNavHost(
                 query = uiState.query,
                 meals = uiState.filteredMeals,
                 favoriteIds = uiState.favoriteIds,
+                isLoading = uiState.isLoading,
+                statusMessage = uiState.statusMessage,
                 onQueryChange = viewModel::onQueryChange,
                 onMealClick = { mealId ->
                     navController.navigate(MealMateDestination.detailRoute(mealId))

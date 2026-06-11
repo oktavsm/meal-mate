@@ -11,6 +11,8 @@ data class MealMateUiState(
     val favoriteIds: Set<String> = emptySet(),
     val mealPlan: List<MealPlanItem> = emptyList(),
     val selectedPlannerDay: MealDay = MealDay.Monday,
+    val isLoading: Boolean = false,
+    val statusMessage: String? = null,
 ) {
     val favoriteMeals: List<Meal>
         get() = meals.filter { it.id in favoriteIds }

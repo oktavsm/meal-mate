@@ -4,10 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +27,8 @@ fun ExploreScreen(
     query: String,
     meals: List<Meal>,
     favoriteIds: Set<String>,
+    isLoading: Boolean,
+    statusMessage: String?,
     onQueryChange: (String) -> Unit,
     onMealClick: (String) -> Unit,
     onFavoriteClick: (String) -> Unit,
@@ -45,6 +50,21 @@ fun ExploreScreen(
             onQueryChange = onQueryChange,
             modifier = Modifier.testTag("search_field"),
         )
+        if (isLoading) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .testTag("recipe_loading"),
+            )
+        }
+        statusMessage?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
         Text(
             text = if (query.isBlank()) "Recommended recipes" else "Search results",
             style = MaterialTheme.typography.titleMedium,
