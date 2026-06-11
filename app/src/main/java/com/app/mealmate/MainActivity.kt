@@ -10,7 +10,9 @@ import com.app.mealmate.ui.app.MealMateApp
 import com.app.mealmate.ui.theme.MealMateTheme
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: MealMateViewModel by viewModels()
+    private val viewModel: MealMateViewModel by viewModels {
+        MealMateViewModel.factory(applicationContext)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

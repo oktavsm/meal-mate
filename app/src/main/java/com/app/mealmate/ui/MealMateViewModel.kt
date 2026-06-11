@@ -1,7 +1,10 @@
 package com.app.mealmate.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.app.mealmate.data.local.LocalMealMateStore
 import com.app.mealmate.data.MealMateRepository
 import com.app.mealmate.domain.model.Meal
 import com.app.mealmate.domain.model.MealDay
@@ -121,21 +124,39 @@ class MealMateViewModel(
     fun getMeal(mealId: String): Meal? = knownMeals.value.firstOrNull { it.id == mealId }
 
     fun toggleFavorite(mealId: String) {
-        repository.toggleFavorite(mealId)
+        repository.toggleFavorite(
+            mealId = mealId,
+            scope = viewModelScope,
+            currentIds = uiState.value.favoriteIds,
+        )
     }
 
     fun removeFavorite(mealId: String) {
-        repository.removeFavorite(mealId)
+        repository.removeFavorite(
+            mealId = mealId,
+            scope = viewModelScope,
+            currentIds = uiState.value.favoriteIds,
+        )
     }
 
     fun addMealPlan(mealId: String, day: MealDay, slot: MealSlot) {
         getMeal(mealId)?.let { meal ->
-            repository.addMealPlan(meal = meal, day = day, slot = slot)
+            repository.addMealPlan(
+                meal = meal,
+                day = day,
+                slot = slot,
+                scope = viewModelScope,
+                currentItems = uiState.value.mealPlan,
+            )
         }
     }
 
     fun removeMealPlan(itemId: String) {
-        repository.removeMealPlan(itemId)
+        repository.removeMealPlan(
+            itemId = itemId,
+            scope = viewModelScope,
+            currentItems = uiState.value.mealPlan,
+        )
     }
 
     fun selectPlannerDay(day: MealDay) {
@@ -155,4 +176,19 @@ class MealMateViewModel(
         val isLoading: Boolean,
         val statusMessage: String?,
     )
+
+    companion object {
+        fun factory(context: Context): ViewModelProvider.Factory {
+            val appContext = context.applicationContext
+            return object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val repository = MealMateRepository(
+                        localStore = LocalMealMateStore(appContext),
+                    )
+                    return MealMateViewModel(repository) as T
+                }
+            }
+        }
+    }
 }
