@@ -11,9 +11,7 @@ import com.app.mealmate.domain.model.MealSlot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.update
@@ -148,11 +146,13 @@ class MealMateRepository(
             return Result.failure(IllegalStateException("Add meals to your planner first."))
         }
 
-        val dataSource = geminiRemoteDataSource
-            ?: return Result.failure(IllegalStateException("Gemini is not configured yet."))
+        val localFallback = items.toLocalShoppingList()
+        val dataSource = geminiRemoteDataSource ?: return Result.success(localFallback)
 
         return runCatching {
             dataSource.generateShoppingList(items.toShoppingListPrompt())
+        }.recover {
+            localFallback
         }
     }
 
@@ -206,6 +206,124 @@ class MealMateRepository(
             Meal plan:
             $mealLines
         """.trimIndent()
+    }
+
+    private fun List<MealPlanItem>.toLocalShoppingList(): String {
+        val groupedIngredients = flatMap { item ->
+            item.meal.ingredients.map { ingredient ->
+                LocalShoppingIngredient(
+                    name = ingredient.name.trim(),
+                    measure = ingredient.measure.trim(),
+                    category = ingredient.name.categoryLabel(),
+                )
+            }
+        }
+            .filter { it.name.isNotBlank() }
+            .groupBy { it.category }
+            .toSortedMap(compareBy { categoryOrder(it) })
+
+        val sections = groupedIngredients.map { (category, ingredients) ->
+            val lines = ingredients
+                .groupBy { it.name.lowercase() }
+                .values
+                .map { duplicates ->
+                    val first = duplicates.first()
+                    val measures = duplicates
+                        .map { it.measure }
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                        .joinToString(" + ")
+                    if (measures.isBlank()) "- ${first.name}" else "- ${first.name}: $measures"
+                }
+                .sorted()
+                .joinToString("\n")
+            "$category\n$lines"
+        }.joinToString("\n\n")
+
+        return """
+            Generated locally because AI is unavailable.
+
+            $sections
+        """.trimIndent()
+    }
+
+    private fun String.categoryLabel(): String {
+        val value = lowercase()
+        return when {
+            value in proteinIngredients -> "Protein"
+            value in dairyIngredients -> "Dairy"
+            value in produceIngredients -> "Produce"
+            value in bakeryIngredients -> "Bakery"
+            value in spiceIngredients -> "Spices"
+            else -> "Pantry"
+        }
+    }
+
+    private fun categoryOrder(category: String): Int {
+        return when (category) {
+            "Protein" -> 0
+            "Produce" -> 1
+            "Dairy" -> 2
+            "Bakery" -> 3
+            "Pantry" -> 4
+            "Spices" -> 5
+            else -> 6
+        }
+    }
+
+    private data class LocalShoppingIngredient(
+        val name: String,
+        val measure: String,
+        val category: String,
+    )
+
+    private companion object {
+        val proteinIngredients = setOf(
+            "beef fillet",
+            "chicken",
+            "chicken breast",
+            "egg",
+            "eggs",
+            "egg yolk",
+            "egg yolks",
+            "minced beef",
+            "prawns",
+            "salmon",
+            "smoked haddock",
+            "white fish",
+        )
+        val dairyIngredients = setOf(
+            "bechamel sauce",
+            "cheddar",
+            "cheese",
+            "mascarpone",
+            "milk",
+            "parmesan",
+            "yogurt",
+        )
+        val produceIngredients = setOf(
+            "aubergine",
+            "beansprouts",
+            "carrot",
+            "cucumber",
+            "garlic",
+            "onion",
+            "potatoes",
+            "romaine lettuce",
+            "tomatoes",
+        )
+        val bakeryIngredients = setOf(
+            "croutons",
+            "ladyfingers",
+            "puff pastry",
+        )
+        val spiceIngredients = setOf(
+            "cinnamon",
+            "curry powder",
+            "garlic paste",
+            "ginger paste",
+            "red chilli flakes",
+        )
     }
 }
 
