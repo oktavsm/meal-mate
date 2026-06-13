@@ -47,7 +47,7 @@ class MealMateRepository(
                             message = "Showing offline recipes because TheMealDB returned no meals.",
                         )
                     } else {
-                        MealLoadResult(meals = mergeMeals(seedMeals, remoteMeals))
+                        MealLoadResult(meals = mergeMeals(remoteMeals, seedMeals))
                     }
                 },
                 onFailure = {
@@ -68,7 +68,7 @@ class MealMateRepository(
         return runCatching { remoteDataSource.searchMeals(query) }
             .fold(
                 onSuccess = { remoteMeals ->
-                    MealLoadResult(meals = mergeMeals(localResults, remoteMeals))
+                    MealLoadResult(meals = mergeMeals(remoteMeals, localResults))
                 },
                 onFailure = {
                     MealLoadResult(

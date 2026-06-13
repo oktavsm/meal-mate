@@ -46,64 +46,64 @@ fun PlannerScreen(
     shoppingListError: String?,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp),
+            .testTag("planner_screen"),
+        contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = "Meal Planner",
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MealDay.entries.forEach { day ->
-                SelectableChip(
-                    text = day.label,
-                    selected = selectedDay == day,
-                    onClick = { onDaySelected(day) },
-                )
-            }
-        }
-        ShoppingListPanel(
-            hasMealPlan = hasMealPlan,
-            isGenerating = isGeneratingShoppingList,
-            shoppingList = shoppingList,
-            error = shoppingListError,
-            onGenerateClick = onGenerateShoppingList,
-            onClearClick = onClearShoppingList,
-        )
-        if (items.isEmpty()) {
-            EmptyState(
-                title = "Your meal plan is still empty.",
-                message = "Add recipes from the detail page.",
-                modifier = Modifier.testTag("empty_planner"),
+        item {
+            Text(
+                text = "Meal Planner",
+                style = MaterialTheme.typography.headlineLarge,
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .testTag("planner_list"),
-                contentPadding = PaddingValues(bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(
-                    items = items,
-                    key = { it.id },
-                ) { item ->
-                    CompactMealRow(
-                        meal = item.meal,
-                        subtitle = "${item.day.label} • ${item.slot.label}",
-                        onClick = { onMealClick(item.meal.id) },
-                        trailing = {
-                            DeleteIconButton(
-                                contentDescription = "Remove meal plan ${item.meal.name}",
-                                onClick = { onRemovePlan(item.id) },
-                            )
-                        },
+        }
+        item {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MealDay.entries.forEach { day ->
+                    SelectableChip(
+                        text = day.label,
+                        selected = selectedDay == day,
+                        onClick = { onDaySelected(day) },
                     )
                 }
+            }
+        }
+        item {
+            ShoppingListPanel(
+                hasMealPlan = hasMealPlan,
+                isGenerating = isGeneratingShoppingList,
+                shoppingList = shoppingList,
+                error = shoppingListError,
+                onGenerateClick = onGenerateShoppingList,
+                onClearClick = onClearShoppingList,
+            )
+        }
+        if (items.isEmpty()) {
+            item {
+                EmptyState(
+                    title = "Your meal plan is still empty.",
+                    message = "Add recipes from the detail page.",
+                    modifier = Modifier.testTag("empty_planner"),
+                )
+            }
+        } else {
+            items(
+                items = items,
+                key = { it.id },
+            ) { item ->
+                CompactMealRow(
+                    meal = item.meal,
+                    subtitle = "${item.day.label} • ${item.slot.label}",
+                    onClick = { onMealClick(item.meal.id) },
+                    trailing = {
+                        DeleteIconButton(
+                            contentDescription = "Remove meal plan ${item.meal.name}",
+                            onClick = { onRemovePlan(item.id) },
+                        )
+                    },
+                )
             }
         }
     }
@@ -163,16 +163,20 @@ private fun ShoppingListPanel(
             }
             shoppingList?.let {
                 Card(
+                    modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
                     ),
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
                             text = it,
+                            modifier = Modifier.fillMaxWidth(),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSecondary,
                         )
